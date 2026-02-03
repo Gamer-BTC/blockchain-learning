@@ -1,0 +1,16 @@
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Compiled
+target/
+*.class
+*.jar
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Maven
+.mvn/
