@@ -5,7 +5,13 @@ import java.math.BigInteger;
 /**
  * 椭圆曲线: y² = x³ + ax + b (mod p)
  * 
- * Week 1 Day 1: 实现点加法和标量乘法
+ * Week 1 Day 1-2: 实现点加法和标量乘法
+ * 
+ * 核心概念:
+ * - 点加法: 过两点画线，与曲线交点关于x轴对称
+ * - 点倍乘: 过一点画切线，与曲线交点关于x轴对称
+ * - 标量乘法: kP = P + P + ... + P (k次)，使用 double-and-add 优化
+ * - 离散对数难题 (ECDLP): 已知 P 和 Q=kP，求 k 是计算困难的
  */
 public class EllipticCurve {
     
@@ -147,5 +153,68 @@ public class EllipticCurve {
     @Override
     public String toString() {
         return String.format("y² = x³ + %sx + %s (mod p)", a, b);
+    }
+    
+    // ==================== 演示 ====================
+    
+    public static void main(String[] args) {
+        System.out.println("=== 椭圆曲线点加法与标量乘法演示 ===\n");
+        
+        // 曲线: y² = x³ + 7 (mod 17) - secp256k1 简化版
+        BigInteger a = BigInteger.ZERO;
+        BigInteger b = BigInteger.valueOf(7);
+        BigInteger p = BigInteger.valueOf(17);
+        
+        EllipticCurve curve = new EllipticCurve(a, b, p);
+        System.out.println("曲线: " + curve + "\n");
+        
+        // 生成元 G = (15, 13)
+        // 验证: 15³ + 7 = 3382, 3382 mod 17 = 16
+        //       13² = 169, 169 mod 17 = 16  ✓
+        Point G = new Point(BigInteger.valueOf(15), BigInteger.valueOf(13));
+        
+        System.out.println("生成元 G = " + G);
+        System.out.println("G 在曲线上: " + curve.isOnCurve(G) + "\n");
+        
+        // 计算 2G (点倍乘)
+        Point G2 = curve.add(G, G);
+        System.out.println("2G = " + G2);
+        System.out.println("2G 在曲线上: " + curve.isOnCurve(G2) + "\n");
+        
+        // 计算 3G = 2G + G
+        Point G3 = curve.add(G2, G);
+        System.out.println("3G = " + G3);
+        
+        // 使用标量乘法计算 5G
+        Point G5 = curve.multiply(BigInteger.valueOf(5), G);
+        System.out.println("5G (标量乘法) = " + G5);
+        
+        // 验证: 5G = 4G + G
+        Point G4 = curve.add(G2, G2);
+        Point G5_verify = curve.add(G4, G);
+        System.out.println("5G (手动验证) = " + G5_verify);
+        System.out.println("两种方法结果一致: " + G5.equals(G5_verify) + "\n");
+        
+        // 计算 11G，演示 double-and-add
+        System.out.println("=== Double-and-Add 演示: 11G ===");
+        System.out.println("11 = 1011₂ = 8 + 2 + 1");
+        Point G11 = curve.multiply(BigInteger.valueOf(11), G);
+        System.out.println("11G = " + G11 + "\n");
+        
+        // 计算点的阶（最小的 n 使得 nG = O）
+        System.out.println("=== 计算 G 的阶 ===");
+        Point current = G;
+        int order = 1;
+        while (!current.isInfinity && order < 100) {
+            order++;
+            current = curve.add(current, G);
+        }
+        System.out.println("G 的阶 = " + order);
+        Point nG = curve.multiply(BigInteger.valueOf(order), G);
+        System.out.println(order + "G = " + (nG.isInfinity ? "O (无穷远点)" : nG));
+        
+        // 验证 (order+1)G = G
+        Point next = curve.multiply(BigInteger.valueOf(order + 1), G);
+        System.out.println((order + 1) + "G = " + next + " (应等于 G)");
     }
 }
