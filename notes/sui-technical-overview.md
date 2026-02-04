@@ -333,6 +333,116 @@ public fun swap(pool: &mut Pool, coin_in: Coin<A>): Coin<B> {
 - 只有真正需要共享的才用 Shared Object → 局部串行
 - 比以太坊"全局串行"高效得多
 
+### 4.10 Sui 对象模型与 UTXO 的关系
+
+Sui 的对象模型可以看作是 **UTXO 的进化版**。
+
+**三种模型对比**
+
+```
+UTXO (Bitcoin)          Account (Ethereum)       Object (Sui)
+─────────────────       ──────────────────       ─────────────────
+   UTXO 1                   Account A               Object 1
+   UTXO 2                     │                     Object 2
+   UTXO 3                   balance: 100            Object 3
+   UTXO 4                   storage: {...}          Object 4
+     │                         │                       │
+     ▼                         ▼                       ▼
+  花费 = 销毁旧的           修改余额               消费/修改对象
+  + 创建新的               （原地修改）            （可选原地修改）
+```
+
+**相似之处**
+
+| 特性 | UTXO | Sui Object |
+|------|------|------------|
+| 独立性 | 每个 UTXO 独立 | 每个 Object 独立 |
+| 并行友好 | ✅ 不相关 UTXO 可并行 | ✅ 不相关 Object 可并行 |
+| 所有权 | UTXO 属于某个地址 | Owned Object 属于某个地址 |
+| 版本/状态 | 只有"未花费/已花费" | 有版本号，可多次修改 |
+| 天然防双花 | ✅ UTXO 只能花一次 | ✅ 版本号防止重复操作 |
+
+**关键区别**
+
+1. **可变性**
+
+```
+UTXO：不可变，只能销毁+创建
+─────────────────────────────
+Input: UTXO(10 BTC)  →  销毁
+Output: UTXO(7 BTC)  →  给别人
+        UTXO(3 BTC)  →  找零给自己
+
+Sui Object：可变，可以原地修改
+─────────────────────────────
+Object(balance: 100)
+    │
+    ▼ 修改
+Object(balance: 70)   同一个对象，版本号 +1
+```
+
+2. **数据丰富度**
+
+```
+UTXO：只能存金额
+─────────────────
+{ value: 10 BTC, script: ... }
+
+Sui Object：可以存任意数据
+─────────────────────────────
+{
+  id: 0x123...,
+  owner: 0xabc...,
+  type: "NFT",
+  data: {
+    name: "CoolApe",
+    image: "ipfs://...",
+    attributes: [...]
+  },
+  version: 5
+}
+```
+
+3. **共享能力**
+
+```
+UTXO：只能属于一个地址
+─────────────────────
+没有"共享 UTXO"的概念
+
+Sui：支持 Shared Object
+─────────────────────────
+Shared Object 可以被多人操作
+（比如 DEX 池、游戏状态）
+```
+
+**演进关系**
+
+```
+UTXO (Bitcoin)
+    │
+    │ 加入智能合约
+    ▼
+Account Model (Ethereum)
+    │
+    │ 结合 UTXO 并行优势 + Account 灵活性
+    ▼
+Object Model (Sui)
+```
+
+**三种模型总结**
+
+| | UTXO | Account | Object |
+|---|------|---------|--------|
+| 代表 | Bitcoin | Ethereum | Sui |
+| 状态单位 | 未花费输出 | 账户余额 | 对象 |
+| 可变性 | ❌ 不可变 | ✅ 可变 | ✅ 可变 |
+| 并行性 | ✅ 好 | ❌ 差 | ✅ 好 |
+| 智能合约 | ❌ 很弱 | ✅ 强 | ✅ 强 |
+| 共享状态 | ❌ 无 | ✅ 有 | ✅ 有（Shared Object）|
+
+**一句话总结**：Sui 的 Object 是 "可编程的、可变的、可共享的 UTXO"。
+
 ---
 
 ## 五、Move 语言
